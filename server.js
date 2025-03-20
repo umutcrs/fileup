@@ -32,6 +32,51 @@ const { optimize } = require('svgo'); // SVG optimizasyonu için
 const window = new JSDOM('').window;
 const DOMPurify = createDOMPurify(window);
 
+// DOMPurify için özel konfigürasyon
+// SVG dosyalarındaki tehlikeli özellikleri ve base64 içeriğini temizlemek için
+const domPurifyConfig = {
+  USE_PROFILES: { svg: true, svgFilters: true },
+  // Tehlikeli tag'leri engelle - image tag'i özellikle base64 içerik için kullanılabilir
+  FORBID_TAGS: [
+    'script', 'iframe', 'object', 'embed', 'foreignObject', 'image', 'use', 'a', 'animate', 'animateTransform', 'set',
+    // Ek olarak potansiyel tehlikeli SVG elementleri
+    'feImage', 'pattern', 'symbol', 'mask', 'clipPath', 'marker', 'filter', 'view'
+  ],
+  // Tehlikeli özellikleri engelle - xlink:href ve href özellikle base64 içerik için kullanılabilir
+  FORBID_ATTR: [
+    // Event handler'lar
+    'onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousemove', 'onmousedown', 'onmouseup',
+    'onkeydown', 'onkeypress', 'onkeyup', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'onreset', 'onselect',
+    'eval', 'function',
+    // URL ve data özellikleri
+    'xlink:href', 'href', 'data', 'src', 'from', 'to', 'values', 'by',
+    // Form özellikleri
+    'formaction', 'form', 'poster',
+    // Görsel özellikleri
+    'background', 'dynsrc', 'lowsrc', 'style',
+    // Diğer tehlikeli özellikler
+    'ping', 'action', 'profile',
+    'data-*', // Tüm data-* özelliklerini engelle
+    'encoding', 'method',
+    'attributeName', 'begin', 'dur', 'repeatCount', 'in', 'result',
+    // Ek olarak potansiyel tehlikeli SVG özellikleri
+    'externalResourcesRequired', 'requiredExtensions', 'systemLanguage',
+    'color-interpolation', 'color-rendering', 'fill', 'fill-opacity', 'fill-rule',
+    'filter', 'mask', 'opacity', 'stroke', 'stroke-dasharray', 'stroke-dashoffset',
+    'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width'
+  ],
+  ALLOW_DATA_ATTR: false,
+  ALLOW_UNKNOWN_PROTOCOLS: false,
+  FORCE_BODY: true,
+  SANITIZE_DOM: true,
+  WHOLE_DOCUMENT: true,
+  ADD_URI_SAFE_ATTR: [], // Güvenli URI özelliklerini ekleme
+  ADD_DATA_URI_TAGS: [], // Data URI'lere izin verilen tag'leri ekleme
+  RETURN_DOM: false,      // DOM nesnesi yerine string döndür
+  RETURN_DOM_FRAGMENT: false, // DOM fragment yerine string döndür
+  RETURN_TRUSTED_TYPE: false  // Trusted Types kullanma
+};
+
 // SVG optimizasyon ve sanitizasyon ayarları
 // SVG dosyalarındaki potansiyel tehlikeli içerikleri temizlemek için kullanılır
 const svgoConfig = {
@@ -40,15 +85,57 @@ const svgoConfig = {
       name: 'preset-default',
       params: {
         overrides: {
-          // Tehlikeli özellikleri kaldır
-          removeScriptElements: true,  // <script> etiketlerini kaldır (XSS koruması)
-          removeOnEventAttributes: true, // onClick gibi event attribute'larını kaldır
-          removeHiddenElems: true,      // Gizli elementleri kaldır
-          removeMetadata: true          // Metadata bilgilerini kaldır (güvenlik ve boyut optimizasyonu)
+          removeScriptElements: true,
+          removeOnEventAttributes: true,
+          removeHiddenElems: true,
+          removeMetadata: true,
+          removeXMLProcInst: true,
+          removeComments: true,
+          removeDoctype: true,
+          removeDesc: true,
+          removeEditorsNSData: true,
+          removeEmptyAttrs: true,
+          removeEmptyText: true,
+          removeEmptyContainers: true,
+          removeUnknownsAndDefaults: true,
+          removeUselessDefs: true,
+          cleanupIDs: true,
+          cleanupNumericValues: true,
+          cleanupListOfValues: true,
+          convertStyleToAttrs: false,
+          removeNonInheritableGroupAttrs: true,
+          removeUselessStrokeAndFill: true,
+          removeUnusedNS: true,
+          cleanupEnableBackground: true,
+          removeHiddenElems: true,
+          removeEmptyText: true,
+          convertShapeToPath: true,
+          moveElemsAttrsToGroup: true,
+          moveGroupAttrsToElems: true,
+          collapseGroups: true,
+          convertPathData: true
         }
       }
+    },
+    {
+      name: 'removeAttrs',
+      params: {
+        attrs: [
+          'data.*',
+          'style',
+          'fill.*',
+          'stroke.*',
+          'filter',
+          'clip.*',
+          'mask',
+          'marker.*',
+          'enable-background',
+          'opacity'
+        ]
+      }
     }
-  ]
+  ],
+  multipass: true
 };
 
 // Express uygulaması oluştur ve port ayarla
@@ -311,10 +398,27 @@ app.post('/upload', validateContentType, async (req, res) => {
       }
     } else {
       try {
-        // SVG dosyaları için sanitizasyon uygula
-        // SVG dosyaları XML tabanlı olduğu için JavaScript kodu içerebilir ve XSS saldırılarına açıktır
-        // Bu nedenle özel sanitizasyon işlemleri uyguluyoruz
+        // SVG içeriğini kontrol et ve base64 içeriğini engelle
         const svgContent = fileBuffer.toString('utf8');
+        
+        // Base64 içeriği ve data URI'leri daha kapsamlı kontrol et
+        // Daha güçlü regex ile base64 ve data URI'leri tespit et
+        // Daha kapsamlı regex desenleri ile base64 içeriğini tespit et
+        if (svgContent.includes('base64') || 
+            /data:[^\s]+;base64/.test(svgContent) || 
+            /xlink:href\s*=\s*["']?\s*data:/.test(svgContent) || 
+            /href\s*=\s*["']?\s*data:/.test(svgContent) ||
+            /<image[^>]*>/.test(svgContent) ||
+            /url\s*\([^)]*data:/.test(svgContent) ||
+            /["']\s*data:/.test(svgContent)) {
+          return res.status(400).json({ error: 'SVG dosyasında base64 kodlu içerik veya data URI tespit edildi' });
+        }
+        
+        // SVG yapısını doğrula
+        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>') || 
+            /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(svgContent)) {
+          return res.status(400).json({ error: 'Geçersiz SVG yapısı veya tehlikeli içerik tespit edildi' });
+        }
         
         // 1. SVGO ile optimize et ve tehlikeli özellikleri kaldır
         // SVGO, SVG dosyalarını optimize ederken aynı zamanda güvenlik açıklarını da temizler
@@ -322,11 +426,20 @@ app.post('/upload', validateContentType, async (req, res) => {
         
         // 2. DOMPurify ile XSS koruması uygula
         // DOMPurify, SVG içindeki potansiyel olarak tehlikeli HTML ve JavaScript kodlarını temizler
-        const sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, {
-          USE_PROFILES: { svg: true, svgFilters: true },
-          FORBID_TAGS: ['script', 'iframe', 'object', 'embed'],
-          FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'eval']
-        });
+        let sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, domPurifyConfig);
+        
+        // 3. Ek güvenlik kontrolü - base64 içeriğini tekrar kontrol et
+        // DOMPurify'dan sonra bile base64 içeriği kalabilir, bu yüzden ek kontrol yapıyoruz
+        if (sanitizedSvg.includes('base64') || 
+            /data:[^\s]+;base64/.test(sanitizedSvg) || 
+            /xlink:href\s*=\s*["']?\s*data:/.test(sanitizedSvg) || 
+            /href\s*=\s*["']?\s*data:/.test(sanitizedSvg) ||
+            /<image[^>]*>/.test(sanitizedSvg)) {
+          // Base64 içeriği tespit edilirse, tüm image etiketlerini ve data URI'leri kaldır
+          sanitizedSvg = sanitizedSvg.replace(/<image[^>]*>/gi, '');
+          sanitizedSvg = sanitizedSvg.replace(/xlink:href\s*=\s*["']?\s*data:[^\s>"']+/gi, '');
+          sanitizedSvg = sanitizedSvg.replace(/href\s*=\s*["']?\s*data:[^\s>"']+/gi, '');
+        }
         
         // Sanitize edilmiş SVG'yi kaydet
         // Temizlenmiş ve güvenli hale getirilmiş SVG dosyasını disk üzerine yazıyoruz
