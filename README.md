@@ -136,6 +136,15 @@ Sistem üzerinde 5 farklı güvenlik testi gerçekleştirildi ve tüm testler ba
 
 ## Sürüm Geçmişi
 
+### v1.0.1 (Güvenlik Güncellemesi - (20-03-2025)
+- SVG dosyalarında XSS güvenlik açığı giderildi
+- SVG sanitizasyon sistemi güçlendirildi
+- Base64 kodlu içerik kontrolü geliştirildi
+- DOMPurify ve SVGO konfigürasyonları optimize edildi
+- SVG güvenlik filtreleri güncellendi
+- Dosya yükleme güvenlik kontrolleri sıkılaştırıldı
+
+
 ### v1.0.0 (Mevcut Sürüm - Kararlı)
 - İlk kararlı sürüm yayınlandı
 - Tüm güvenlik önlemleri tam olarak implemente edildi
