@@ -26,6 +26,49 @@ Bu proje, RCE (Remote Code Execution) güvenlik açıklarına karşı korumalı,
 7. **Rate Limiting**: DoS saldırılarına karşı koruma sağlar
 8. **Content-Type Doğrulama**: İstek başlığının doğru formatta olmasını sağlar
 
+
+
+## Güvenlik Testleri ve Sonuçları
+
+Sistem üzerinde 5 farklı güvenlik testi gerçekleştirildi ve tüm testler başarıyla tamamlandı.
+
+### 1. Content-Type Manipülasyonu Testi
+**Amaç:** Content-Type başlığını değiştirerek güvenlik kontrollerini bypass etmeye çalışmak
+**Sonuç:** ✅ BAŞARILI (Güvenlik Önlemi Çalışıyor)
+- Sistem yanlış Content-Type ile gelen istekleri reddetti
+- Sadece geçerli resim MIME türlerine izin verildi
+
+### 2. Magic Bytes Manipülasyonu Testi
+**Amaç:** JavaScript dosyasını PNG magic bytes ile maskeleyerek yüklemeye çalışmak
+**Sonuç:** ✅ BAŞARILI (Güvenlik Önlemi Çalışıyor)
+- Sistem dosya içeriğini doğru şekilde analiz etti
+- Sahte magic bytes ile yapılan saldırı engellendi
+
+### 3. SVG XSS Testi
+**Amaç:** SVG dosyası içine zararlı JavaScript kodu yerleştirme denemesi
+**Sonuç:** ✅ BAŞARILI (Güvenlik Önlemi Çalışıyor)
+- SVG içindeki script etiketleri başarıyla temizlendi
+- XSS payload'ı etkisiz hale getirildi
+
+### 4. Path Traversal Testi
+**Amaç:** "../../../etc/passwd.jpg" gibi path traversal içeren dosya adları ile saldırı
+**Sonuç:** ✅ BAŞARILI (Güvenlik Önlemi Çalışıyor)
+- Tehlikeli karakterler dosya adından temizlendi
+- Dizin gezinme girişimleri engellendi
+
+### 5. DoS Koruması Testi
+**Amaç:** 15MB boyutunda dosya yükleyerek boyut sınırını test etme
+**Sonuç:** ✅ BAŞARILI (Güvenlik Önlemi Çalışıyor)
+- 10MB üzerindeki dosyalar reddedildi
+- Sistem kaynak tüketimi kontrol altında tutuldu
+
+### Test Özeti
+- **Toplam Test Sayısı:** 5
+- **Başarılı Güvenlik Önlemi:** 5
+- **Tespit Edilen Güvenlik Açığı:** 0
+
+
+
 ## Kurulum
 
 ### Gereksinimler
