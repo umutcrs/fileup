@@ -1,4 +1,4 @@
-# Güvenli Fotoğraf Yükleme Sistemi v1.0.0
+# Güvenli Fotoğraf Yükleme Sistemi v1.0.1
 
 ## Proje Hakkında
 
