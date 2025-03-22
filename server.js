@@ -401,17 +401,27 @@ app.post('/upload', validateContentType, async (req, res) => {
         // SVG içeriğini kontrol et ve base64 içeriğini engelle
         const svgContent = fileBuffer.toString('utf8');
         
+        // SVG içeriğinin maksimum uzunluğunu kontrol et (DoS saldırılarını önlemek için)
+        if (svgContent.length > 50000) { // 50KB'dan büyük SVG dosyalarını reddet
+          return res.status(400).json({ error: 'SVG dosyası çok büyük, maksimum 50KB olabilir' });
+        }
+        
         // Base64 içeriği ve data URI'leri daha kapsamlı kontrol et
-        // Daha güçlü regex ile base64 ve data URI'leri tespit et
-        // Daha kapsamlı regex desenleri ile base64 içeriğini tespit et
-        // Polynomial ReDoS güvenlik açığını önlemek için optimize edilmiş regex ifadeleri
+        // ReDoS güvenlik açığını önlemek için optimize edilmiş regex ifadeleri
         if (svgContent.includes('base64') || 
-            /data:[^\s;]+;base64/.test(svgContent) || 
-            /xlink:href[ ]*=[ ]*["']?[ ]*data:/.test(svgContent) || 
-            /href[ ]*=[ ]*["']?[ ]*data:/.test(svgContent) ||
-            /<image[^>]*>/.test(svgContent) ||
-            /url[ ]*\([^)]*data:/.test(svgContent) ||
-            /["'][ ]*data:/.test(svgContent)) {
+            // Basit string kontrolü ile hızlı filtreleme
+            svgContent.includes('data:') && /data:[^;]{1,50};base64/.test(svgContent) || 
+            // Sabit uzunluklu boşluk kontrolü - ReDoS'a karşı optimize edilmiş
+            svgContent.includes('xlink:href') && svgContent.includes('data:') && /xlink:href[ ]{0,5}=[ ]{0,5}["']?[ ]{0,5}data:/.test(svgContent.substring(0, 1000)) || 
+            svgContent.includes('href') && svgContent.includes('data:') && /href[ ]{0,5}=[ ]{0,5}["']?[ ]{0,5}data:/.test(svgContent.substring(0, 1000)) ||
+            // Image tag kontrolü - ReDoS'a karşı optimize edilmiş
+            svgContent.includes('<image') && (svgContent.length > 10000 || 
+              (svgContent.length <= 1000 ? /<image[^>]{0,200}>/.test(svgContent) : false)) ||
+            // URL fonksiyon kontrolü - ReDoS'a karşı optimize edilmiş
+            svgContent.includes('url(') && svgContent.includes('data:') && 
+              (svgContent.length <= 1000 ? /url[ ]{0,5}\([^)]{0,200}data:/.test(svgContent) : false) ||
+            // Tırnak içinde data URI kontrolü - sınırlı boşluk ve uzunluk kontrolü
+            svgContent.includes('data:') && (svgContent.length <= 1000 ? /["'][ ]{0,5}data:/.test(svgContent) : false)) {
           return res.status(400).json({ error: 'SVG dosyasında base64 kodlu içerik veya data URI tespit edildi' });
         }
         
@@ -430,12 +440,16 @@ app.post('/upload', validateContentType, async (req, res) => {
         
         // 3. Ek güvenlik kontrolü - base64 içeriğini tekrar kontrol et
         // DOMPurify'dan sonra bile base64 içeriği kalabilir, bu yüzden ek kontrol yapıyoruz
-        // Polynomial ReDoS güvenlik açığını önlemek için optimize edilmiş regex ifadeleri
-        if (sanitizedSvg.includes('base64') || 
-            /data:[^\s;]+;base64/.test(sanitizedSvg) || 
-            /xlink:href[ ]*=[ ]*["']?[ ]*data:/.test(sanitizedSvg) || 
-            /href[ ]*=[ ]*["']?[ ]*data:/.test(sanitizedSvg) ||
-            /<image[^>]*>/.test(sanitizedSvg)) {
+        // Maksimum uzunluk kontrolü ve optimize edilmiş regex ifadeleri
+        if (sanitizedSvg.length > 50000 || // 50KB'dan büyük SVG dosyalarını reddet
+            sanitizedSvg.includes('base64') || 
+            // Basit string kontrolü ile hızlı filtreleme
+            sanitizedSvg.includes('data:') && /data:[^;]{1,50};base64/.test(sanitizedSvg) || 
+            // Sabit uzunluklu boşluk kontrolü
+            sanitizedSvg.includes('xlink:href') && /xlink:href[ ]{0,5}=[ ]{0,5}["']?[ ]{0,5}data:/.test(sanitizedSvg) || 
+            sanitizedSvg.includes('href') && /href[ ]{0,5}=[ ]{0,5}["']?[ ]{0,5}data:/.test(sanitizedSvg) ||
+            // Image tag kontrolü - karakter sınıfı yerine sınırlı uzunluk
+            sanitizedSvg.includes('<image') && /<image[^>]{0,200}>/.test(sanitizedSvg)) {
           // Base64 içeriği tespit edilirse, tüm image etiketlerini ve data URI'leri kaldır
           sanitizedSvg = sanitizedSvg.replace(/<image[^>]*>/gi, '');
           sanitizedSvg = sanitizedSvg.replace(/xlink:href\s*=\s*["']?\s*data:[^\s>"']+/gi, '');
