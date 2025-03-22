@@ -404,20 +404,20 @@ app.post('/upload', validateContentType, async (req, res) => {
         // Base64 içeriği ve data URI'leri daha kapsamlı kontrol et
         // Daha güçlü regex ile base64 ve data URI'leri tespit et
         // Daha kapsamlı regex desenleri ile base64 içeriğini tespit et
+        // Polynomial ReDoS güvenlik açığını önlemek için optimize edilmiş regex ifadeleri
         if (svgContent.includes('base64') || 
-            /data:[^\s]+;base64/.test(svgContent) || 
-            /xlink:href\s*=\s*["']?\s*data:/.test(svgContent) || 
-            /href\s*=\s*["']?\s*data:/.test(svgContent) ||
+            /data:[^\s;]+;base64/.test(svgContent) || 
+            /xlink:href[ ]*=[ ]*["']?[ ]*data:/.test(svgContent) || 
+            /href[ ]*=[ ]*["']?[ ]*data:/.test(svgContent) ||
             /<image[^>]*>/.test(svgContent) ||
-            /url\s*\([^)]*data:/.test(svgContent) ||
-            /["']\s*data:/.test(svgContent)) {
+            /url[ ]*\([^)]*data:/.test(svgContent) ||
+            /["'][ ]*data:/.test(svgContent)) {
           return res.status(400).json({ error: 'SVG dosyasında base64 kodlu içerik veya data URI tespit edildi' });
         }
         
         // SVG yapısını doğrula
-        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>') || 
-            /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(svgContent)) {
-          return res.status(400).json({ error: 'Geçersiz SVG yapısı veya tehlikeli içerik tespit edildi' });
+        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>')) {
+          return res.status(400).json({ error: 'Geçersiz SVG yapısı tespit edildi' });
         }
         
         // 1. SVGO ile optimize et ve tehlikeli özellikleri kaldır
@@ -430,10 +430,11 @@ app.post('/upload', validateContentType, async (req, res) => {
         
         // 3. Ek güvenlik kontrolü - base64 içeriğini tekrar kontrol et
         // DOMPurify'dan sonra bile base64 içeriği kalabilir, bu yüzden ek kontrol yapıyoruz
+        // Polynomial ReDoS güvenlik açığını önlemek için optimize edilmiş regex ifadeleri
         if (sanitizedSvg.includes('base64') || 
-            /data:[^\s]+;base64/.test(sanitizedSvg) || 
-            /xlink:href\s*=\s*["']?\s*data:/.test(sanitizedSvg) || 
-            /href\s*=\s*["']?\s*data:/.test(sanitizedSvg) ||
+            /data:[^\s;]+;base64/.test(sanitizedSvg) || 
+            /xlink:href[ ]*=[ ]*["']?[ ]*data:/.test(sanitizedSvg) || 
+            /href[ ]*=[ ]*["']?[ ]*data:/.test(sanitizedSvg) ||
             /<image[^>]*>/.test(sanitizedSvg)) {
           // Base64 içeriği tespit edilirse, tüm image etiketlerini ve data URI'leri kaldır
           sanitizedSvg = sanitizedSvg.replace(/<image[^>]*>/gi, '');
