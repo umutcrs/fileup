@@ -247,8 +247,14 @@ app.post('/upload', validateContentType, async (req, res) => {
     // Geçici dosya kullanımı, büyük dosyaları belleğe yüklemeden işlemeyi sağlar
     if (uploadedFile.tempFilePath) {
       try {
-        fileBuffer = fs.readFileSync(uploadedFile.tempFilePath);
-        console.log('Dosya geçici dosyadan okundu:', uploadedFile.tempFilePath);
+        const safeRoot = path.resolve(__dirname, 'uploads');
+        const normalizedPath = path.resolve(uploadedFile.tempFilePath);
+        if (!normalizedPath.startsWith(safeRoot)) {
+          console.error('Geçersiz dosya yolu:', uploadedFile.tempFilePath);
+          return res.status(400).json({ error: 'Geçersiz dosya yolu' });
+        }
+        fileBuffer = fs.readFileSync(normalizedPath);
+        console.log('Dosya geçici dosyadan okundu:', normalizedPath);
       } catch (err) {
         console.error('Geçici dosya okuma hatası:', err);
         return res.status(400).json({ error: 'Dosya okunamadı' });
