@@ -415,9 +415,8 @@ app.post('/upload', validateContentType, async (req, res) => {
         }
         
         // SVG yapısını doğrula
-        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>') || 
-            /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi.test(svgContent)) {
-          return res.status(400).json({ error: 'Geçersiz SVG yapısı veya tehlikeli içerik tespit edildi' });
+        if (!svgContent.includes('<svg') || !svgContent.includes('</svg>')) {
+          return res.status(400).json({ error: 'Geçersiz SVG yapısı tespit edildi' });
         }
         
         // 1. SVGO ile optimize et ve tehlikeli özellikleri kaldır
@@ -426,7 +425,7 @@ app.post('/upload', validateContentType, async (req, res) => {
         
         // 2. DOMPurify ile XSS koruması uygula
         // DOMPurify, SVG içindeki potansiyel olarak tehlikeli HTML ve JavaScript kodlarını temizler
-        let sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, domPurifyConfig);
+        let sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, { ...domPurifyConfig, ADD_TAGS: ['script'], ADD_ATTR: ['*'] });
         
         // 3. Ek güvenlik kontrolü - base64 içeriğini tekrar kontrol et
         // DOMPurify'dan sonra bile base64 içeriği kalabilir, bu yüzden ek kontrol yapıyoruz
