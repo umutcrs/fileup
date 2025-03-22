@@ -247,8 +247,17 @@ app.post('/upload', validateContentType, async (req, res) => {
     // Geçici dosya kullanımı, büyük dosyaları belleğe yüklemeden işlemeyi sağlar
     if (uploadedFile.tempFilePath) {
       try {
-        fileBuffer = fs.readFileSync(uploadedFile.tempFilePath);
-        console.log('Dosya geçici dosyadan okundu:', uploadedFile.tempFilePath);
+        // Path injection zafiyetini önlemek için dosya yolunu normalleştir ve doğrula
+        const normalizedPath = path.resolve(uploadedFile.tempFilePath);
+        
+        // Dosya yolunun geçici dizin içinde olduğunu doğrula
+        if (!normalizedPath.startsWith(tempDir)) {
+          console.error('Güvenlik hatası: Dosya yolu geçici dizin dışında:', normalizedPath);
+          return res.status(400).json({ error: 'Geçersiz dosya yolu' });
+        }
+        
+        fileBuffer = fs.readFileSync(normalizedPath);
+        console.log('Dosya geçici dosyadan okundu:', normalizedPath);
       } catch (err) {
         console.error('Geçici dosya okuma hatası:', err);
         return res.status(400).json({ error: 'Dosya okunamadı' });
@@ -496,6 +505,9 @@ app.get('/', (req, res) => {
 
 // Sunucuyu başlat
 // Belirtilen port üzerinde HTTP sunucusunu başlatıyoruz
+app.listen(PORT, () => {
+  console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
+});
 app.listen(PORT, () => {
   console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
 });
