@@ -136,6 +136,62 @@ Sistem üzerinde 5 farklı güvenlik testi gerçekleştirildi ve tüm testler ba
 
 ## Sürüm Geçmişi
 
+### v1.1.0 (Mevcut Sürüm - Kararlı) 23-03-2025
+
+#### RegEx DoS (ReDoS) Güvenlik Açıklarına Karşı Koruma
+RegEx Denial of Service (ReDoS) saldırıları, kötü niyetli kullanıcıların özel olarak hazırlanmış girdilerle regex işlemlerinin aşırı kaynak tüketmesine neden olarak sistemi yavaşlatması veya çökertmesidir. Bu sürümde:
+- SVG içerik doğrulama regex'leri optimize edildi ve sabit uzunluklu boşluk kontrolleri eklendi
+- Base64 ve data URI kontrollerinde kullanılan regex'ler yeniden düzenlenerek katastrofik geri izleme önlendi
+- Regex işlemleri öncesinde basit string kontrolleri eklenerek gereksiz regex işlemleri azaltıldı
+- Uzun içerikler için regex işlemleri sınırlandırıldı (örn. `svgContent.length <= 1000 ? /pattern/.test(svgContent) : false`)
+
+#### SVG Dosyalarındaki Güvenlik Kontrolleri İyileştirildi
+SVG dosyaları, içerdikleri XML yapısı nedeniyle çeşitli saldırı vektörleri barındırabilir. Bu sürümde:
+- DOMPurify konfigürasyonu genişletilerek daha fazla tehlikeli SVG elementi ve özelliği engellendi
+- SVG namespace manipülasyonu saldırılarına karşı koruma eklendi (`foreignObject`, `html:script` gibi)
+- SVG animasyon saldırılarına karşı `animate`, `animateTransform`, `set` gibi elementler engellendi
+- SVG içeriğinde maksimum uzunluk kontrolü (50KB) eklenerek DoS saldırıları önlendi
+- Çoklu katmanlı SVG kodlama saldırılarına karşı koruma eklendi
+
+#### HTML Filtreleme Regex'i Güvenlik Açıkları Giderildi
+HTML içeriğini filtrelemek için kullanılan regex'lerdeki güvenlik açıkları kapatıldı:
+- Karakter sınıfları yerine sabit uzunluklu kontroller kullanıldı (örn. `[^>]*` yerine `{0,200}`)
+- Regex işlemleri öncesinde içerik uzunluğu kontrolü eklendi
+- Nested tag'lerin işlenmesinde daha güvenli yaklaşımlar benimsendi
+- DOMPurify sonrası ek güvenlik kontrolleri eklenerek bypass teknikleri engellendi
+
+#### Path Injection Zafiyeti Giderildi
+Path injection (yol enjeksiyonu), saldırganların dosya yollarını manipüle ederek yetkisiz dosya erişimi sağlamasıdır. Bu sürümde:
+- Dosya yolları `path.resolve()` ile normalleştirilerek sembolik bağlantılar ve göreceli yollar çözümlendi
+- Normalleştirilen yolların geçerli dizinler içinde olduğu doğrulandı (`normalizedPath.startsWith(tempDir)`)
+- Dosya adı sanitizasyonu güçlendirildi ve UUID kullanımı optimize edildi
+- Yüklenen dosyaların kaydedildiği yollar için ek doğrulama kontrolleri eklendi
+
+#### XXE (XML External Entity) Saldırılarına Karşı Ek Koruma
+XXE saldırıları, XML işleyicilerinin dış varlıkları çözümlemesini kullanarak hassas dosyalara erişim sağlar. Bu sürümde:
+- SVG içeriğinde DOCTYPE ve XML işleme talimatları tamamen kaldırıldı
+- SVGO konfigürasyonu güncellenerek `removeXMLProcInst` ve `removeDoctype` özellikleri etkinleştirildi
+- CDATA bölümlerindeki XXE saldırılarına karşı koruma eklendi
+- Entity kodlaması kullanılarak yapılan XXE saldırılarına karşı ek kontroller eklendi
+
+#### Polyglot Dosya Saldırılarına Karşı Koruma
+Polyglot dosyalar, birden fazla dosya formatı olarak yorumlanabilen dosyalardır (örn. hem PNG hem SVG). Bu sürümde:
+- Magic bytes kontrolü güçlendirilerek dosya içeriğinin gerçek türü daha kapsamlı doğrulandı
+- MIME tipi ve dosya uzantısı uyuşmazlığı kontrolü iyileştirildi
+- PNG dosyaları için özel magic bytes kontrolü eklendi
+- SVG içeriğinde gizlenmiş zararlı kod kontrolü eklendi
+- Dosya içeriği ve MIME tipi arasındaki tutarsızlıkları tespit eden ek kontroller eklendi
+
+#### MIME Tipi Doğrulama Sistemi Güçlendirildi
+MIME tipi spoofing saldırılarına karşı doğrulama sistemi iyileştirildi:
+- Dosya içeriği ile beyan edilen MIME tipi arasındaki tutarlılık kontrolü güçlendirildi
+- Alternatif MIME tipi doğrulama mekanizmaları eklendi
+- SVG dosyaları için içerik tabanlı MIME tipi doğrulaması geliştirildi
+- Dosya uzantısı ve MIME tipi eşleşmesi için daha sıkı kontroller uygulandı
+- MIME tipi doğrulama başarısız olduğunda daha açıklayıcı hata mesajları eklendi
+
+
+
 ### v1.0.1 (Güvenlik Güncellemesi - (20-03-2025)
 - SVG dosyalarında XSS güvenlik açığı giderildi
 - SVG sanitizasyon sistemi güçlendirildi
@@ -145,7 +201,7 @@ Sistem üzerinde 5 farklı güvenlik testi gerçekleştirildi ve tüm testler ba
 - Dosya yükleme güvenlik kontrolleri sıkılaştırıldı
 
 
-### v1.0.0 (Mevcut Sürüm - Kararlı)
+### v1.0.0 (Kararlı)
 - İlk kararlı sürüm yayınlandı
 - Tüm güvenlik önlemleri tam olarak implemente edildi
 - Dosya içerik analizi (Magic bytes) ile dosya türü doğrulama sistemi eklendi
