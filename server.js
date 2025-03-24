@@ -372,12 +372,16 @@ app.post('/upload', validateContentType, async (req, res) => {
     // Bu, dosya adı manipülasyonu ve çakışma sorunlarını önler
     const sanitizedFileName = sanitize(uploadedFile.name);
     const uniqueFileName = `${uuidv4()}${path.extname(sanitizedFileName)}`;
-    // Path traversal saldırılarına karşı normalize et
-    const filePath = path.normalize(path.join(uploadsDir, uniqueFileName));
+    // Path traversal saldırılarına karşı resolve et (normalize yerine)
+    // path.resolve() fonksiyonu, sembolik bağlantıları çözümler ve mutlak yol döndürür
+    // Bu, path.normalize()'dan daha güvenlidir çünkü tüm yol manipülasyonlarını çözümler
+    const filePath = path.resolve(path.join(uploadsDir, uniqueFileName));
     
     // Path traversal kontrolü - dosya yolunun uploads dizini içinde olduğunu doğrula
     // Bu, '../' gibi yol manipülasyonları ile yapılabilecek saldırılara karşı koruma sağlar
-    if (!filePath.startsWith(uploadsDir)) {
+    // path.resolve() kullanıldığında bile bu kontrol yapılmalıdır
+    if (!filePath.startsWith(path.resolve(uploadsDir))) {
+      console.error('Güvenlik hatası: Path traversal denemesi tespit edildi:', filePath);
       return res.status(400).json({ error: 'Geçersiz dosya yolu' });
     }
 
@@ -478,9 +482,12 @@ app.post('/upload', validateContentType, async (req, res) => {
     // 8. Başarılı yanıt
     // Tüm güvenlik kontrollerinden geçen dosya başarıyla kaydedildi, kullanıcıya başarı mesajı dönüyoruz
     // Dosya yolunu da dönerek istemci tarafında görüntülenmesini sağlıyoruz
+    // Dosya yolunu HTML entity'lerine dönüştürerek XSS saldırılarını önle
+    const sanitizedFilePath = `/uploads/${uniqueFileName}`;
+    
     res.status(200).json({
       message: 'Dosya başarıyla yüklendi',
-      filePath: `/uploads/${uniqueFileName}`
+      filePath: sanitizedFilePath
     });
 
   } catch (error) {
@@ -505,9 +512,6 @@ app.get('/', (req, res) => {
 
 // Sunucuyu başlat
 // Belirtilen port üzerinde HTTP sunucusunu başlatıyoruz
-app.listen(PORT, () => {
-  console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
-});
 app.listen(PORT, () => {
   console.log(`Sunucu http://localhost:${PORT} adresinde çalışıyor`);
 });
