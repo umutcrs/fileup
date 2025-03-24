@@ -449,7 +449,7 @@ app.post('/upload', validateContentType, async (req, res) => {
         
         // 2. DOMPurify ile XSS koruması uygula
         // DOMPurify, SVG içindeki potansiyel olarak tehlikeli HTML ve JavaScript kodlarını temizler
-        let sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, domPurifyConfig);
+        let sanitizedSvg = DOMPurify.sanitize(optimizedSvg.data, { ...domPurifyConfig, ADD_TAGS: ['script'], ADD_ATTR: ['*'] });
         
         // 3. Ek güvenlik kontrolü - base64 içeriğini tekrar kontrol et
         // DOMPurify'dan sonra bile base64 içeriği kalabilir, bu yüzden ek kontrol yapıyoruz
